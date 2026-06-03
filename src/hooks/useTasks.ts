@@ -3,11 +3,30 @@ import { toast } from 'burnt';
 import { taskKeys } from '../lib/queryKeys';
 import * as store from '../store/taskStore';
 import type { Task, TaskStatus, CreateTaskInput, UpdateTaskInput } from '../types';
+import { api } from '../lib/api'
+import { enqueue } from '../lib/offlineQueue'
+
+
+
 
 const notify = {
   success: (title: string) => toast({ title, preset: 'done' }),
   error:   (title: string) => toast({ title, preset: 'error' }),
 };
+
+
+// ─── READ: get all tasks ─────────────────────────────────────────────────────
+//
+// What happens:
+//   1. Component mounts, calls useTasks()
+//   2. React Query checks cache for key ['tasks']
+//   3a. Cache HIT + data is fresh (< staleTime): return cache, no fetch
+//   3b. Cache HIT + data is stale: return cache immediately, fetch in background
+//   3c. Cache MISS: return { isLoading: true }, then fetch
+//   4. On success: cache is updated, all subscribers re-render
+//
+// Offline: if there's no internet but there's cached data, step 3a/3b runs
+// 
 
 export function useTasksByDate(date: string) {
   return useQuery({
@@ -27,18 +46,54 @@ export function useTasksByMonth(year: number, month: number) {
   });
 }
 
+export function useTasks() {
+  return useQuery<Task[]>({
+    queryKey: taskKeys.all(),
+    queryFn:  () => api.tasks.getAll(),
+    // placeholderData keeps showing old data while a background refetch runs
+    // instead of flashing a loading spinner
+    placeholderData: (prev) => prev,
+  }
+  );}
+  
+
+  // ─── READ: single task ───────────────────────────────────────────────────────
+
+export function useTask(id: string) {
+  return useQuery<Task>({
+    queryKey: taskKeys.detail(id),
+    queryFn:  () => api.tasks.get(id),
+    enabled:  !!id,
+  })
+};
+
+
+
+// ─── WRITE: create task ──────────────────────────────────────────────────────
+//
+// Strategy: OPTIMISTIC UPDATE
+//
+// onMutate  → immediately add task to cache (instant UI response)
+// mutationFn → send POST to backend
+// onError   → something went wrong, roll back to the snapshot
+// onSettled → whether success or fail, refetch to sync with backend truth
+//
+// If OFFLINE: mutationFn throws a network error.
+//             onError fires, we roll back the optimistic update visually.
+//             We also push to the offline queue so we can retry on reconnect.
+
 export function useCreateTask(date: string) {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateTaskInput) =>
-      store.createTask({
+      api.tasks.create({
         title:            input.title,
         description:      input.description ?? null,
         date:             input.date,
-        start_time:       input.start_time ?? null,
+        start_time:       input.start_time ,
         duration_minutes: input.duration_minutes,
-        status:           'pending',
+        status:           'pending' as TaskStatus,
         color_index:      input.color_index ?? 0,
         steps:            (input.steps ?? []).map((s, i) => ({
                             id: `temp-${i}`,
@@ -77,17 +132,28 @@ export function useCreateTask(date: string) {
       return { previous };
     },
 
-    onError: (_e, _i, ctx) => {
-      if (ctx?.previous !== undefined) qc.setQueryData(taskKeys.byDate(date), ctx.previous);
-      notify.error('Failed to create task');
+    onError: async (err, input, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(taskKeys.byDate(date), ctx.previous);
+      }
+
+      if (err.message.includes('Network request failed') || err.message.includes('fetch')) {
+        await enqueue({ type: 'CREATE_TASK', payload: { title: input.title } });
+      } else {
+        notify.error('Failed to create task');
+      }
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: taskKeys.all });
       notify.success('Task created');
+    },
+
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: taskKeys.all() });
     },
   });
 }
+
 
 export function useUpdateTask(date: string) {
   const qc = useQueryClient();
@@ -170,7 +236,7 @@ export function useDeleteTask(date: string) {
     },
 
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: taskKeys.all });
+      qc.invalidateQueries({ queryKey: taskKeys.all() });
       notify.success('Task deleted');
     },
   });
@@ -210,4 +276,5 @@ export function useToggleStep(date: string) {
       qc.invalidateQueries({ queryKey: taskKeys.byDate(date) });
     },
   });
+
 }

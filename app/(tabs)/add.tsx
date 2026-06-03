@@ -12,28 +12,48 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { toast } from 'burnt';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useCreateTask } from '../../src/hooks/useTasks';
 import { TAG_TO_COLOR_INDEX, COLOR_CLASSES } from '../../src/types';
-
 
 const TODAY = new Date().toISOString().split('T')[0];
 const TAG_OPTIONS = ['Work', 'Personal', 'Health', 'Productivity'];
 
 export default function AddScreen() {
-  const router = useRouter();
+  const router     = useRouter();
   const createTask = useCreateTask(TODAY);
 
   const [title, setTitle]         = useState('');
   const [description, setDesc]    = useState('');
+  const [date, setDate]           = useState(TODAY);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration]   = useState('30');
   const [tag, setTag]             = useState('Work');
   const [steps, setSteps]         = useState<string[]>([]);
   const [newStep, setNewStep]     = useState('');
 
+  // ── picker visibility ────────────────────────────────────────────────────
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+
+  // ── picker handlers ──────────────────────────────────────────────────────
+  function onDateConfirm(picked: Date) {
+    setDate(picked.toISOString().split('T')[0]); // → "2025-06-02"
+    setDatePickerOpen(false);
+  }
+
+  function onTimeConfirm(picked: Date) {
+    const hh = picked.getHours().toString().padStart(2, '0');
+    const mm = picked.getMinutes().toString().padStart(2, '0');
+    setStartTime(`${hh}:${mm}`);                 // → "09:30"
+    setTimePickerOpen(false);
+  }
+
+  // ── reset ────────────────────────────────────────────────────────────────
   function reset() {
     setTitle('');
     setDesc('');
+    setDate(TODAY);
     setStartTime('');
     setDuration('30');
     setTag('Work');
@@ -41,6 +61,7 @@ export default function AddScreen() {
     setNewStep('');
   }
 
+  // ── submit ───────────────────────────────────────────────────────────────
   function submit() {
     if (!title.trim()) {
       toast({ title: 'Title is required', preset: 'error' });
@@ -52,16 +73,17 @@ export default function AddScreen() {
       return;
     }
 
-    createTask.mutate(
+    try {
+      createTask.mutate(
       {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        date: TODAY,
-        start_time: startTime.trim() || undefined,
+        title:            title.trim(),
+        description:      description.trim() || undefined,
+        date:             date || TODAY,
+        start_time:       startTime || undefined,
         duration_minutes: mins,
-        color_index: TAG_TO_COLOR_INDEX[tag] ?? 4,
-        steps: steps.map(text => ({ text })),
-        tags: [tag],
+        color_index:      TAG_TO_COLOR_INDEX[tag] ?? 4,
+        steps:            steps.map(text => ({ text })),
+        tags:             [tag],
       },
       {
         onSuccess: () => {
@@ -70,19 +92,29 @@ export default function AddScreen() {
         },
       },
     );
+
+    } catch (err) {
+      console.error('Create task error:', err);
+      toast({ title: 'Failed to create task', preset: 'error' });
+      return;
+    }
   }
 
+  // ── render ───────────────────────────────────────────────────────────────
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
+        {/* Header */}
         <View className="px-6 py-5 border-b border-border bg-card">
           <Text className="text-foreground text-2xl font-semibold">New Task</Text>
         </View>
 
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }}>
+
+          {/* Title */}
           <View>
             <Text className="text-muted-foreground text-sm mb-2">Title</Text>
             <TextInput
@@ -94,6 +126,7 @@ export default function AddScreen() {
             />
           </View>
 
+          {/* Description */}
           <View>
             <Text className="text-muted-foreground text-sm mb-2">Description</Text>
             <TextInput
@@ -108,17 +141,33 @@ export default function AddScreen() {
             />
           </View>
 
+          {/* Date picker */}
+          <View>
+            <Text className="text-muted-foreground text-sm mb-2">Date</Text>
+            <Pressable
+              onPress={() => setDatePickerOpen(true)}
+              className="bg-card border border-border rounded-lg px-4 py-3 flex-row items-center justify-between"
+            >
+              <Text className="text-foreground">{date}</Text>
+              <Ionicons name="calendar-outline" size={18} color="#737373" />
+            </Pressable>
+          </View>
+
+          {/* Start time + Duration */}
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <Text className="text-muted-foreground text-sm mb-2">Start (HH:MM)</Text>
-              <TextInput
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="09:00"
-                placeholderTextColor="#737373"
-                className="bg-card border border-border rounded-lg px-4 py-3 text-foreground"
-              />
+              <Text className="text-muted-foreground text-sm mb-2">Start time</Text>
+              <Pressable
+                onPress={() => setTimePickerOpen(true)}
+                className="bg-card border border-border rounded-lg px-4 py-3 flex-row items-center justify-between"
+              >
+                <Text className={startTime ? 'text-foreground' : 'text-muted-foreground'}>
+                  {startTime || '09:00'}
+                </Text>
+                <Ionicons name="time-outline" size={18} color="#737373" />
+              </Pressable>
             </View>
+
             <View className="flex-1">
               <Text className="text-muted-foreground text-sm mb-2">Duration (min)</Text>
               <TextInput
@@ -132,6 +181,7 @@ export default function AddScreen() {
             </View>
           </View>
 
+          {/* Tag */}
           <View>
             <Text className="text-muted-foreground text-sm mb-2">Tag</Text>
             <View className="flex-row flex-wrap gap-2">
@@ -156,6 +206,7 @@ export default function AddScreen() {
             </View>
           </View>
 
+          {/* Steps */} 
           <View>
             <Text className="text-muted-foreground text-sm mb-2">Steps</Text>
             {steps.map((s, i) => (
@@ -197,6 +248,7 @@ export default function AddScreen() {
             </View>
           </View>
 
+          {/* Submit */}
           <Pressable
             onPress={submit}
             disabled={createTask.isPending}
@@ -209,6 +261,25 @@ export default function AddScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Date picker modal — rendered outside ScrollView so it overlays correctly */}
+      <DateTimePickerModal
+        isVisible={datePickerOpen}
+        mode="date"
+        date={new Date(date)}
+        onConfirm={onDateConfirm}
+        onCancel={() => setDatePickerOpen(false)}
+      />
+
+      {/* Time picker modal */}
+      <DateTimePickerModal
+        isVisible={timePickerOpen}
+        mode="time"
+        // if startTime already set, open picker at that time
+        date={startTime ? new Date(`1970-01-01T${startTime}:00`) : new Date()}
+        onConfirm={onTimeConfirm}
+        onCancel={() => setTimePickerOpen(false)}
+      />
     </SafeAreaView>
   );
 }

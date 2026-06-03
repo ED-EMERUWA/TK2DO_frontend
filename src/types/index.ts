@@ -32,13 +32,14 @@ export interface CalendarTask {
 
 export interface CreateTaskInput {
   title: string;
-  description?: string;
+  description?: string | null;
   date: string;
   start_time?: string;
   duration_minutes: number;
   color_index?: number;
   steps?: Array<{ text: string }>;
   tags?: string[];
+  status?:          TaskStatus;
 }
 
 export interface UpdateTaskInput {

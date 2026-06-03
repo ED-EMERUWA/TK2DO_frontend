@@ -9,7 +9,8 @@ import {
 
 import { storage } from '../lib/storage';
 import { env } from '../config/env';
-import type { UserProfile } from '../types';
+import type { AuthResponse, UserProfile } from '../types';
+import { api } from '../lib/api';
 
 type AuthContextType = {
   user: UserProfile | null;
@@ -56,58 +57,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // -------------------------
   // LOGIN
   // -------------------------
+ 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await fetch(`${env.BACKEND_ORIGIN}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Login failed');
-    }
-
-    const data = await response.json();
-
-    // persist
+  console.log('Attempting login with email:', email);
+  try {
+    const data = await api.auth.login({ email, password });
+        console.log('Login API response:', data);
     await storage.setToken(data.token);
     await storage.setUser(data.user);
 
-    // update state
+    // update state — you were missing these!
     setToken(data.token);
     setUser(data.user);
-  }, []);
+
+    console.log('Login successful, user:', data.user);
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
+}, []);
 
   // -------------------------
   // SIGNUP
   // -------------------------
-  const signup = useCallback(
-    async (email: string, password: string, name?: string) => {
-      const response = await fetch(`${env.BACKEND_ORIGIN}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
-      });
+ const signup = useCallback(async (email: string, password: string, name?: string) => {
+  console.log('Attempting signup with email:', email);
+  try {
+    const data = await api.auth.signup({ email, password, name });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Signup failed');
-      }
+    await storage.setToken(data.token);
+    await storage.setUser(data.user);
 
-      const data = await response.json();
+    setToken(data.token);
+    setUser(data.user);
 
-      // persist
-      await storage.setToken(data.token);
-      await storage.setUser(data.user);
-
-      // update state
-      setToken(data.token);
-      setUser(data.user);
-    },
-    []
-  );
-
+    console.log('Signup successful, user:', data.user);
+  } catch (error) {
+    console.error('Signup error:', error);
+    throw error;
+  }
+}, []);
   // -------------------------
   // LOGOUT
   // -------------------------

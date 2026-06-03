@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { toast } from 'burnt';
-import { useAuth } from '../../src/hooks/useAuth';
+
 import { ApiError } from '../../src/lib/api';
 import { useAuthContext } from '../../src/context/AuthContext';
 
@@ -36,8 +36,9 @@ export default function LoginScreen() {
       else                  await signup(email.trim(), password, name.trim() || undefined);
       router.replace('/(tabs)/today');
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Something went wrong';
-      toast({ title: msg, preset: 'error' });
+      // const msg = err instanceof ApiError ? err.message : 'Something went wrong';
+      console.log('Login/signup error:', err);
+      // toast({ title: msg, preset: 'error' });
     } finally {
       setBusy(false);
     }

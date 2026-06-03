@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { storage } from '../lib/storage';
-import { auth } from '../lib/api';
+import { api } from '../lib/api';
 import type { UserProfile } from '../types';
 import { env } from '../config/env';
 
@@ -32,7 +32,7 @@ const login = useCallback(async (email: string, password: string) => {
         throw new Error(errorData.error || 'Login failed');
     
       }
-      const data = await response.json();
+      const data = await api.auth.login({ email, password });
       await storage.setToken(data.token);
       
       await storage.setUser(data.user);
