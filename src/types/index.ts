@@ -15,6 +15,7 @@ export interface Task {
   start_time: string | null;
   duration_minutes: number;
   status: TaskStatus;
+  completed:        boolean;   
   color_index: number;
   steps: TaskStep[];
   tags: string[];
@@ -50,6 +51,10 @@ export interface UpdateTaskInput {
   duration_minutes?: number;
   status?: TaskStatus;
   color_index?: number;
+  completed:        boolean;   
+
+  
+
 }
 
 export interface UserProfile {

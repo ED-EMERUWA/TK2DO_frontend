@@ -65,7 +65,7 @@ tasks : {
   getByDate:  (date: string)                => request<Task[]>(`/tasks?date=${date}`),
   getByMonth: (year: number, month: number) => request<Task[]>(`/tasks?year=${year}&month=${month}`),
   get:        (id: string)                  => request<Task>(`/tasks/${id}`),
-  create:     (body: CreateTaskInput)       => request<Task>('/tasks/createTask', { method: 'POST', body: JSON.stringify(body) }),
+  create:     (body: CreateTaskInput)       => request<Task>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
   update:     (id: string, body: UpdateTaskInput) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   delete:     (id: string) => request<void>(`/tasks/${id}`, { method: 'DELETE' }),

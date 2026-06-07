@@ -115,6 +115,7 @@ export function useCreateTask(date: string) {
         date:             input.date,
         start_time:       input.start_time ?? null,
         duration_minutes: input.duration_minutes,
+        completed:        false,
         status:           'pending',
         color_index:      input.color_index ?? 0,
         steps:            (input.steps ?? []).map((s, i) => ({
@@ -138,7 +139,8 @@ export function useCreateTask(date: string) {
       }
 
       if (err.message.includes('Network request failed') || err.message.includes('fetch')) {
-        await enqueue({ type: 'CREATE_TASK', payload: { title: input.title } });
+
+        await enqueue({ type: 'CREATE_TASK', payload:  input  });
       } else {
         notify.error('Failed to create task');
       }

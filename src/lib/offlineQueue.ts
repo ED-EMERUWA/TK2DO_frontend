@@ -29,6 +29,7 @@ export async function enqueue(mutation: Omit<QueuedMutation, 'id' | 'createdAt'>
     id:        Math.random().toString(36).slice(2),
     createdAt: new Date().toISOString(),
   }
+  console.log('offline enqueue', item)
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify([...queue, item]))
   return item
 }
@@ -52,8 +53,10 @@ export async function flushQueue(
   for (const mutation of queue) {
     try {
       await handlers[mutation.type](mutation.payload)
+      console.log('Flushed mutation', mutation)
       await dequeue(mutation.id)
-    } catch {
+    } catch(error) {
+      console.log('Failed to flush mutation', mutation, error)
       // Leave it in the queue to retry next flush
     }
   }
