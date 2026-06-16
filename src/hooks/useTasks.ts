@@ -29,12 +29,18 @@ const notify = {
 // 
 
 export function useTasksByDate(date: string) {
-  return useQuery({
+
+  const tasks = useQuery({
     queryKey: taskKeys.byDate(date),
-    queryFn:  () => store.fetchTasksByDate(date),
+    // this query fn puts things in the cache
+    queryFn:  () => api.tasks.getByDate(date),
     staleTime: 2 * 60 * 1000,
     gcTime:    10 * 60 * 1000,
   });
+  console.log('Tasks by date:', tasks);
+  return tasks;
+  // this is already calling your bacjkend, you just bneed t finsd a way to put it in asyncstorage and handle it
+
 }
 
 export function useTasksByMonth(year: number, month: number) {
@@ -182,7 +188,7 @@ export function useUpdateTask(date: string) {
 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: taskKeys.byDate(date) });
-    },
+    }, 
   });
 }
 
@@ -191,7 +197,7 @@ export function useUpdateTaskStatus(date: string) {
 
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
-      store.updateTaskStatus(id, status),
+      api.tasks.update(id, { status }),
 
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: taskKeys.byDate(date) });
@@ -219,7 +225,7 @@ export function useDeleteTask(date: string) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => store.deleteTask(id),
+    mutationFn: (id: string) => api.tasks.delete(id),
 
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: taskKeys.byDate(date) });
@@ -252,7 +258,7 @@ export function useToggleStep(date: string) {
       taskId: string;
       stepId: string;
       completed: boolean;
-    }) => store.toggleStep(taskId, stepId, completed),
+    }) => api.tasks.updateStep( stepId, { completed } ),
 
     onMutate: async ({ taskId, stepId, completed }) => {
       await qc.cancelQueries({ queryKey: taskKeys.byDate(date) });

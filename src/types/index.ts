@@ -51,7 +51,7 @@ export interface UpdateTaskInput {
   duration_minutes?: number;
   status?: TaskStatus;
   color_index?: number;
-  completed:        boolean;   
+  completed?:        boolean;   
 
   
 

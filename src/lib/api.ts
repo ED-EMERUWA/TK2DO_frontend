@@ -56,7 +56,7 @@ export const api = {
       request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
     login: (body: { email: string; password: string }) =>
       request<AuthResponse>('/auth/login/', { method: 'POST', body: JSON.stringify(body) }),
-    me: () => request<UserProfile>('/auth/me'),
+    me: () => request<UserProfile>('/auth/me'), 
   updateMe: (body: { name?: string }) =>
     request<UserProfile>('/auth/me', { method: 'PATCH', body: JSON.stringify(body) }),
 },

@@ -10,8 +10,8 @@ import { flushQueue } from '../src/lib/offlineQueue';
 import { api } from '../src/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { taskKeys } from '../src/lib/queryKeys';
+import { useAuthContext } from '../src/context/AuthContext';
 
-// ── OfflineFlush must live INSIDE QueryProvider in the tree ──────────────────
 function OfflineFlush() {
   const queryClient = useQueryClient();
 
@@ -41,17 +41,28 @@ function OfflineFlush() {
   return null;
 }
 
+// ── separate component so it lives inside AuthProvider ───────────────────────
+function Navigation() {
+  const { token } = useAuthContext();  // ← inside a component ✅
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f0f0f' } }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Protected guard={!!token}>  {/* ← !! converts string|null to boolean */}
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+    </Stack>
+  )
+}
+
 export default function RootLayout() {
   return (
-    <QueryProvider>              {/* ← your wrapper, not raw QueryClientProvider */}
-      <AuthProvider>
+    <QueryProvider>
+      <AuthProvider>           {/* ← AuthProvider must wrap Navigation */}
         <SafeAreaProvider>
-          <OfflineFlush />       {/* ← inside QueryProvider so useQueryClient works */}
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f0f0f' } }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
+          <OfflineFlush />
+          <Navigation />       {/* ← useAuthContext works here — inside AuthProvider */}
           <StatusBar style="light" />
         </SafeAreaProvider>
       </AuthProvider>
