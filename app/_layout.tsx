@@ -51,7 +51,7 @@ function Navigation() {
       <Stack.Screen name="(auth)" />
       <Stack.Protected guard={!!token}>  {/* ← !! converts string|null to boolean */}
         <Stack.Screen name="(tabs)" />
-      </Stack.Protected>
+    </Stack.Protected>
     </Stack>
   )
 }

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, ScrollView, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTasksByMonth } from '../../src/hooks/useTasks';
+import { useTasksByDate, useTasksByMonth } from '../../src/hooks/useTasks';
 import { COLOR_CLASSES } from '../../src/types';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -19,6 +19,7 @@ export default function CalendarScreen() {
   const today = new Date();
   const [year, setYear]   = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { data: tasks = [], isLoading } = useTasksByMonth(year, month);
 
@@ -62,10 +63,10 @@ export default function CalendarScreen() {
 
       <ScrollView className="flex-1">
         <View className="p-4">
-          <View className="flex-row mb-2">
+          <View className="flex-row mb-3">
             {DAY_LABELS.map((d, i) => (
               <View key={i} className="flex-1 items-center">
-                <Text className="text-muted-foreground text-xs">{d}</Text>
+                <Text className="text-muted-foreground text-sm font-medium">{d}</Text>
               </View>
             ))}
           </View>
@@ -76,31 +77,118 @@ export default function CalendarScreen() {
             </View>
           ) : (
             <View className="flex-row flex-wrap">
-              {cells.map((day, idx) => (
-                <View
-                  key={idx}
-                  className="border border-border/30"
-                  style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 4 }}
-                >
-                  {day !== null && (
-                    <>
-                      <Text className="text-foreground text-sm">{day}</Text>
-                      <View className="flex-row flex-wrap gap-0.5 mt-1">
-                        {(tasksByDay[day] ?? []).slice(0, 4).map(t => (
-                          <View
-                            key={t.id}
-                            className={`w-2 h-2 rounded-full ${COLOR_CLASSES[t.color_index] ?? 'bg-chart-1'}`}
-                          />
-                        ))}
-                      </View>
-                    </>
-                  )}
-                </View>
-              ))}
+              {cells.map((day, idx) => {
+                const count = day !== null ? (tasksByDay[day] ?? []).length : 0;
+                return (
+                  <Pressable
+                    key={idx}
+                    disabled={day === null}
+                    onPress={() => {
+                      if (day === null) return;
+                      const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      setSelectedDate(iso);
+                    }}
+                    className="border border-border/30"
+                    style={{ width: `${100 / 7}%`, aspectRatio: 0.85, padding: 6 }}
+                  >
+                    {day !== null && (
+                      <>
+                        <Text className="text-foreground text-base font-medium">{day}</Text>
+                        {count > 0 && (
+                          <View className="mt-1.5 self-start bg-primary rounded-full min-w-5 h-5 px-1.5 items-center justify-center">
+                            <Text className="text-primary-foreground text-xs font-semibold">{count}</Text>
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={selectedDate !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedDate(null)}
+      >
+        {selectedDate && (
+          <DayTasksSheet date={selectedDate} onClose={() => setSelectedDate(null)} />
+        )}
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+function DayTasksSheet({ date, onClose }: { date: string; onClose: () => void }) {
+  const { data: tasks = [], isLoading } = useTasksByDate(date);
+
+  const [year, month, day] = date.split('-').map(Number);
+
+const localDate = new Date(
+  year,
+  month - 1,
+  day,
+  12, // noon avoids timezone edge cases
+);
+
+const formatted = localDate.toLocaleDateString('en-US', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+});
+
+  return (
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <View className="px-6 py-5 border-b border-border bg-card flex-row items-center justify-between">
+        <Text className="text-foreground text-xl font-semibold">{formatted}</Text>
+        <Pressable onPress={onClose} className="p-2">
+          <Ionicons name="close" size={22} color="#fafafa" />
+        </Pressable>
+      </View>
+
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color="#6366f1" />
+        </View>
+      ) : (
+        <FlatList
+          data={tasks}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ padding: 16, gap: 12 }}
+          ListEmptyComponent={
+            <Text className="text-muted-foreground text-center py-12">No tasks for this day.</Text>
+          }
+          renderItem={({ item: task }) => {
+            const colorBg = COLOR_CLASSES[task.color_index] ?? 'bg-chart-1';
+            return (
+              <View className="bg-card border border-border rounded-lg p-4 flex-row items-start gap-3">
+                <View className={`w-1 self-stretch rounded-full ${colorBg}`} />
+                <View className="flex-1">
+                  <Text className="text-foreground text-base mb-2">{task.title}</Text>
+                  <View className="flex-row items-center gap-3">
+                    {task.start_time && (
+                      <View className="flex-row items-center gap-1">
+                        <Ionicons name="time-outline" size={14} color="#737373" />
+                        <Text className="text-muted-foreground text-sm">{task.start_time}</Text>
+                      </View>
+                    )}
+                    <Text className="text-muted-foreground text-sm">{task.duration_minutes} min</Text>
+                    {task.tags[0] && (
+                      <View className="bg-muted px-2 py-0.5 rounded">
+                        <Text className="text-muted-foreground text-xs">{task.tags[0]}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

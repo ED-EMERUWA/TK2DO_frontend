@@ -7,12 +7,17 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { toast } from 'burnt';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import dayjs from 'dayjs';
+import DateTimePicker, {
+  useDefaultClassNames,
+  type DateType,
+} from 'react-native-ui-datepicker';
 import { useCreateTask } from '../../src/hooks/useTasks';
 import { TAG_TO_COLOR_INDEX, COLOR_CLASSES } from '../../src/types';
 
@@ -36,17 +41,54 @@ export default function AddScreen() {
   // ── picker visibility ────────────────────────────────────────────────────
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  // Working value for the time picker — its wheels fire onChange continuously,
+  // so we hold the in-progress value and only commit it on "Done".
+  const [tmpTime, setTmpTime] = useState<Date>(new Date());
+
+  // ── themed picker classNames (overrides the lib defaults that reference
+  //    `accent` tokens this app doesn't define) ───────────────────────────────
+  const defaultClassNames = useDefaultClassNames();
+  const pickerClassNames = {
+    ...defaultClassNames,
+    today: 'border border-primary',
+    today_label: 'text-primary',
+    selected: 'bg-primary',
+    selected_label: 'text-primary-foreground',
+    selected_month: 'bg-primary',
+    selected_month_label: 'text-primary-foreground',
+    selected_year: 'bg-primary',
+    selected_year_label: 'text-primary-foreground',
+    day_label: 'text-foreground',
+    month_label: 'text-foreground',
+    year_label: 'text-foreground',
+    outside_label: 'text-muted-foreground',
+    weekday_label: 'text-muted-foreground',
+  };
 
   // ── picker handlers ──────────────────────────────────────────────────────
-  function onDateConfirm(picked: Date) {
-    setDate(picked.toISOString().split('T')[0]); // → "2025-06-02"
-    setDatePickerOpen(false);
+function onDateChange({ date: picked }: { date: DateType }) {
+  const today = dayjs().startOf('day');
+
+  const selected = dayjs(picked).startOf('day');
+
+  // prevent picking past dates
+  if (selected.isBefore(today)) {
+    toast({ title: 'Cannot select past dates', preset: 'error' });
+    return;
   }
 
-  function onTimeConfirm(picked: Date) {
-    const hh = picked.getHours().toString().padStart(2, '0');
-    const mm = picked.getMinutes().toString().padStart(2, '0');
-    setStartTime(`${hh}:${mm}`);                 // → "09:30"
+  setDate(selected.format('YYYY-MM-DD'));
+  setDatePickerOpen(false);
+}
+
+  function openTimePicker() {
+    setTmpTime(startTime ? dayjs(`1970-01-01T${startTime}`).toDate() : new Date());
+    setTimePickerOpen(true);
+  }
+
+  function confirmTime() {
+
+    setStartTime(dayjs(tmpTime).format('HH:mm')); // → "09:30"
     setTimePickerOpen(false);
   }
 
@@ -159,7 +201,7 @@ export default function AddScreen() {
             <View className="flex-1">
               <Text className="text-muted-foreground text-sm mb-2">Start time</Text>
               <Pressable
-                onPress={() => setTimePickerOpen(true)}
+                onPress={openTimePicker}
                 className="bg-card border border-border rounded-lg px-4 py-3 flex-row items-center justify-between"
               >
                 <Text className={startTime ? 'text-foreground' : 'text-muted-foreground'}>
@@ -264,23 +306,81 @@ export default function AddScreen() {
       </KeyboardAvoidingView>
 
       {/* Date picker modal — rendered outside ScrollView so it overlays correctly */}
-      <DateTimePickerModal
-        isVisible={datePickerOpen}
-        mode="date"
-        date={new Date(date)}
-        onConfirm={onDateConfirm}
-        onCancel={() => setDatePickerOpen(false)}
-      />
+      <Modal
+        visible={datePickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerOpen(false)}
+      >
+        <View className="flex-1 justify-end">
+          {/* dimmed backdrop — sibling BEHIND the sheet, tap to dismiss */}
+          <Pressable
+            onPress={() => setDatePickerOpen(false)}
+            className="absolute inset-0 bg-black/60"
+          />
+          {/* sheet — plain View so the picker owns its own touch responder */}
+          <View className="bg-card border-t border-border rounded-t-2xl px-4 pt-4 pb-8">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-foreground text-lg font-semibold">Select date</Text>
+              <Pressable onPress={() => setDatePickerOpen(false)} className="p-1">
+                <Ionicons name="close" size={22} color="#fafafa" />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              mode="single"
+              date={dayjs(date)}
+              onChange={onDateChange}
+              classNames={pickerClassNames}
+              components={{
+                IconPrev: <Ionicons name="chevron-back" size={20} color="#fafafa" />,
+                IconNext: <Ionicons name="chevron-forward" size={20} color="#fafafa" />,
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* Time picker modal */}
-      <DateTimePickerModal
-        isVisible={timePickerOpen}
-        mode="time"
-        // if startTime already set, open picker at that time
-        date={startTime ? new Date(`1970-01-01T${startTime}:00`) : new Date()}
-        onConfirm={onTimeConfirm}
-        onCancel={() => setTimePickerOpen(false)}
-      />
+      <Modal
+        visible={timePickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTimePickerOpen(false)}
+      >
+        <View className="flex-1 justify-end">
+          {/* dimmed backdrop — sibling BEHIND the sheet, tap to dismiss.
+              Must NOT wrap the wheel: a scrollable list inside a Pressable
+              fights for the touch responder and the wheel won't scroll. */}
+          <Pressable
+            onPress={() => setTimePickerOpen(false)}
+            className="absolute inset-0 bg-black/60"
+          />
+          {/* sheet — plain View so the hour/minute wheels own their scroll */}
+          <View className="bg-card border-t border-border rounded-t-2xl px-4 pt-4 pb-8">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-foreground text-lg font-semibold">Select start time</Text>
+              <Pressable onPress={() => setTimePickerOpen(false)} className="p-1">
+                <Ionicons name="close" size={22} color="#fafafa" />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              mode="single"
+              timePicker
+              initialView="time"
+              hideHeader
+              date={tmpTime}
+              onChange={({ date: picked }) => setTmpTime(dayjs(picked).toDate())}
+              classNames={pickerClassNames}
+            />
+            <Pressable
+              onPress={confirmTime}
+              className="bg-primary rounded-lg py-3 items-center mt-4"
+            >
+              <Text className="text-primary-foreground font-semibold">Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
