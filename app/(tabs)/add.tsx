@@ -184,6 +184,49 @@ function onDateChange({ date: picked }: { date: DateType }) {
             />
           </View>
 
+          
+          {/* Steps */} 
+          <View>
+            <Text className="text-muted-foreground text-sm mb-2">Steps</Text>
+            {steps.map((s, i) => (
+              <View key={i} className="flex-row items-center gap-2 mb-2">
+                <Text className="flex-1 text-foreground bg-card border border-border rounded-lg px-3 py-2">
+                  {s}
+                </Text>
+                <Pressable
+                  onPress={() => setSteps(prev => prev.filter((_, idx) => idx !== i))}
+                  className="p-2"
+                >
+                  <Ionicons name="close" size={18} color="#ef4444" />
+                </Pressable>
+              </View>
+            ))}
+            <View className="flex-row items-center gap-2">
+              <TextInput
+                value={newStep}
+                onChangeText={setNewStep}
+                placeholder="Add step…"
+                placeholderTextColor="#737373"
+                className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-foreground"
+              />
+              <Pressable
+                onPress={() => {
+                  const s = newStep.trim();
+                  if (!s) return;
+                  if (steps.length >= 20) {
+                    toast({ title: 'Max 20 steps', preset: 'error' });
+                    return;
+                  }
+                  setSteps(prev => [...prev, s]);
+                  setNewStep('');
+                }}
+                className="bg-primary rounded-lg px-3 py-2"
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
+
           {/* Date picker */}
           <View>
             <Text className="text-muted-foreground text-sm mb-2">Date</Text>
@@ -249,47 +292,6 @@ function onDateChange({ date: picked }: { date: DateType }) {
             </View>
           </View>
 
-          {/* Steps */} 
-          <View>
-            <Text className="text-muted-foreground text-sm mb-2">Steps</Text>
-            {steps.map((s, i) => (
-              <View key={i} className="flex-row items-center gap-2 mb-2">
-                <Text className="flex-1 text-foreground bg-card border border-border rounded-lg px-3 py-2">
-                  {s}
-                </Text>
-                <Pressable
-                  onPress={() => setSteps(prev => prev.filter((_, idx) => idx !== i))}
-                  className="p-2"
-                >
-                  <Ionicons name="close" size={18} color="#ef4444" />
-                </Pressable>
-              </View>
-            ))}
-            <View className="flex-row items-center gap-2">
-              <TextInput
-                value={newStep}
-                onChangeText={setNewStep}
-                placeholder="Add step…"
-                placeholderTextColor="#737373"
-                className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-foreground"
-              />
-              <Pressable
-                onPress={() => {
-                  const s = newStep.trim();
-                  if (!s) return;
-                  if (steps.length >= 20) {
-                    toast({ title: 'Max 20 steps', preset: 'error' });
-                    return;
-                  }
-                  setSteps(prev => [...prev, s]);
-                  setNewStep('');
-                }}
-                className="bg-primary rounded-lg px-3 py-2"
-              >
-                <Ionicons name="add" size={20} color="#fff" />
-              </Pressable>
-            </View>
-          </View>
 
           {/* Submit */}
           <Pressable

@@ -66,7 +66,7 @@ export default function CalendarScreen() {
           <View className="flex-row mb-3">
             {DAY_LABELS.map((d, i) => (
               <View key={i} className="flex-1 items-center">
-                <Text className="text-muted-foreground text-sm font-medium">{d}</Text>
+                <Text className="text-muted-foreground text-base font-medium">{d}</Text>
               </View>
             ))}
           </View>
@@ -78,7 +78,9 @@ export default function CalendarScreen() {
           ) : (
             <View className="flex-row flex-wrap">
               {cells.map((day, idx) => {
-                const count = day !== null ? (tasksByDay[day] ?? []).length : 0;
+                const dayTasks = day !== null ? (tasksByDay[day] ?? []) : [];
+                const dotTasks = dayTasks.slice(0, 3);          // max 3 dots
+                const overflow = dayTasks.length - dotTasks.length;
                 return (
                   <Pressable
                     key={idx}
@@ -89,14 +91,22 @@ export default function CalendarScreen() {
                       setSelectedDate(iso);
                     }}
                     className="border border-border/30"
-                    style={{ width: `${100 / 7}%`, aspectRatio: 0.85, padding: 6 }}
+                    style={{ width: `${100 / 7}%`, minHeight: 84, padding: 8 }}
                   >
                     {day !== null && (
                       <>
-                        <Text className="text-foreground text-base font-medium">{day}</Text>
-                        {count > 0 && (
-                          <View className="mt-1.5 self-start bg-primary rounded-full min-w-5 h-5 px-1.5 items-center justify-center">
-                            <Text className="text-primary-foreground text-xs font-semibold">{count}</Text>
+                        <Text className="text-foreground text-lg font-medium">{day}</Text>
+                        {dayTasks.length > 0 && (
+                          <View className="flex-row items-center flex-wrap mt-1.5 gap-1">
+                            {dotTasks.map((t, i) => (
+                              <View
+                                key={i}
+                                className={`w-2 h-2 rounded-full ${COLOR_CLASSES[t.color_index] ?? 'bg-chart-5'}`}
+                              />
+                            ))}
+                            {overflow > 0 && (
+                              <Text className="text-muted-foreground text-xs font-medium">+{overflow}</Text>
+                            )}
                           </View>
                         )}
                       </>

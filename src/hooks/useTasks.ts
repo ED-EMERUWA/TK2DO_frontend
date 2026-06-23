@@ -43,10 +43,10 @@ export function useTasksByDate(date: string) {
 
 }
 
-export function useTasksByMonth(year: number, month: number) {
+export function useTasksByMonth(year: number, month: number) {  
   return useQuery({
     queryKey: taskKeys.byMonth(year, month),
-    queryFn:  () => store.fetchTasksByMonth(year, month),
+    queryFn:  () => api.tasks.getByMonth(year, month),
     staleTime: 5 * 60 * 1000,
     gcTime:    15 * 60 * 1000,
   });

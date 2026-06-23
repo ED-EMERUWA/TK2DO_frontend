@@ -88,7 +88,7 @@ export function QueryProvider({ children }: Props) {
       persistOptions={{
         persister,
         maxAge:         1000 * 60 * 60 * 24, // discard cache older than 24h
-        buster:         '1',                  // change this string to force-clear
+        buster:         '2',                  // change this string to force-clear
                                               // all users' caches on next launch
                                               // (e.g. after a breaking data change)
       }}
